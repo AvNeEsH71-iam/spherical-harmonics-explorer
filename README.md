@@ -28,7 +28,7 @@ physics students and researchers.
 
 ```bash
 # 1. Clone
-git clone https://github.com/<your-username>/spherical-harmonics-explorer.git
+git clone https://github.com/AvNeEsH71-iam/spherical-harmonics-explorer.git
 cd spherical-harmonics-explorer
 
 # 2. Install dependencies  (tkinter ships with Python — no pip needed)
@@ -49,18 +49,9 @@ python main.py
 
 An interactive React + Tailwind + Plotly dashboard is included in `dashboard.html`.
 
-### Run it
 
-```bash
-# From project root
-python -m http.server 8000
-```
 
-Then open:
 
-```text
-http://localhost:8000/dashboard.html
-```
 
 ### Included UI features
 
