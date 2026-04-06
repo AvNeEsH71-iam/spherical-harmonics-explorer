@@ -6,7 +6,7 @@ physics students and researchers.
 
 ---
 
-## ✨ Features
+##  Features
 
 | Feature | Detail |
 |---|---|
@@ -24,7 +24,7 @@ physics students and researchers.
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ```bash
 # 1. Clone
@@ -45,7 +45,7 @@ python main.py
 
 ---
 
-## 🌐 Modern Interactive Web Dashboard
+##  Modern Interactive Web Dashboard
 
 An interactive React + Tailwind + Plotly dashboard is included in `dashboard.html`.
 
@@ -75,7 +75,7 @@ http://localhost:8000/dashboard.html
 
 ---
 
-## 🗂️ Project Structure
+##  Project Structure
 
 ```
 spherical_harmonics_explorer/
@@ -93,7 +93,7 @@ spherical_harmonics_explorer/
 
 ---
 
-## 🔬 Physics Background
+##  Physics Background
 
 ### Spherical Harmonics
 
@@ -151,7 +151,7 @@ P_ℓ(x)   = 1/(2^ℓ ℓ!)  · d^ℓ/dx^ℓ  (x²−1)^ℓ    [Rodrigues]
 
 ---
 
-## 🖥️ Controls Reference
+##  Controls Reference
 
 | Control | Function |
 |---|---|
@@ -166,7 +166,7 @@ P_ℓ(x)   = 1/(2^ℓ ℓ!)  · d^ℓ/dx^ℓ  (x²−1)^ℓ    [Rodrigues]
 
 ---
 
-## 📦 Dependencies
+##  Dependencies
 
 | Package | Version | Purpose |
 |---|---|---|
@@ -177,13 +177,8 @@ P_ℓ(x)   = 1/(2^ℓ ℓ!)  · d^ℓ/dx^ℓ  (x²−1)^ℓ    [Rodrigues]
 
 ---
 
-## 📄 License
 
-MIT — see `LICENSE`.
-
----
-
-## 🙏 Acknowledgements
+##  Acknowledgements
 
 - Scipy's `scipy.special.sph_harm` for exact Y_ℓ^m values.
 - Jackson, *Classical Electrodynamics* — notation and conventions.
