@@ -1,0 +1,796 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║        SPHERICAL HARMONICS AND LEGENDRE POLYNOMIALS                        ║
+║        A Comprehensive Technical Report                                     ║
+║        — with Python GUI Project Documentation —                            ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Author  : [Your Name]
+Date    : 2025
+Version : 1.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TABLE OF CONTENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1.  Introduction and Motivation
+  2.  Laplace's Equation in Spherical Coordinates
+  3.  Separation of Variables
+  4.  The Azimuthal Equation
+  5.  Legendre Polynomials
+        5.1  Rodrigues' Formula
+        5.2  Explicit Polynomials (l = 0 … 10)
+        5.3  Recurrence Relation
+        5.4  Orthogonality
+        5.5  Generating Function
+  6.  Associated Legendre Polynomials
+        6.1  Definition
+        6.2  Node Structure
+        6.3  Orthogonality
+  7.  The Radial Equation
+  8.  Spherical Harmonics Y_l^m(theta, phi)
+        8.1  Definition and Normalisation
+        8.2  Physical Meaning of l and m
+        8.3  Explicit Table (l = 0, 1, 2, 3)
+        8.4  Orthonormality
+        8.5  Completeness Theorem
+        8.6  Symmetry and Parity
+        8.7  Addition Theorem
+        8.8  Real Spherical Harmonics
+  9.  Physical Applications
+        9.1  Quantum Mechanics — Hydrogen Atom
+        9.2  Classical Electrostatics
+        9.3  Gravitational Multipoles
+        9.4  Vesicle Membrane Fluctuations
+        9.5  Seismology and Earth Science
+        9.6  Computer Graphics
+ 10.  Mode Analysis: Why l >= 2 Matters
+ 11.  Python Project: Spherical Harmonics Explorer
+        11.1  Project Architecture
+        11.2  math_core.py
+        11.3  plotter.py
+        11.4  app.py (GUI)
+        11.5  Usage Guide
+        11.6  GitHub Setup
+ 12.  Summary of Key Formulae
+ 13.  References
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. INTRODUCTION AND MOTIVATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When we try to solve partial differential equations on a spherical domain, we
+face a fundamental problem: the standard basis of sines and cosines that works
+perfectly on flat or cylindrical geometries is incompatible with the spherical
+surface.  We need a new family of functions that are "native" to the sphere —
+functions that naturally capture every possible angular pattern, fit together
+without gaps or overlaps, and are orthogonal to one another.
+
+That family is the set of SPHERICAL HARMONICS, denoted Y_l^m(theta, phi).
+
+The analogy is precise and illuminating:
+
+    Domain           Basis Functions         Expansion
+    ─────────────────────────────────────────────────────────
+    Circle [0,2pi]   e^{imx}, cos(mx)        Fourier series
+    Sphere S^2       Y_l^m(theta, phi)        Multipole expansion
+
+Spherical harmonics are therefore the "Fourier modes of the sphere".  They
+appear in virtually every branch of physics that involves spherical or near-
+spherical geometry:
+
+  • Quantum mechanics:  atomic orbitals (s, p, d, f shells)
+  • Electrostatics:     multipole expansion of charge distributions
+  • Gravitation:        Earth's gravitational field (geoid)
+  • Soft-matter physics: thermal fluctuations of vesicle membranes
+  • Seismology:         normal modes of the Earth
+  • Computer graphics:  environment-map lighting (spherical harmonics lighting)
+  • Astrophysics:       CMB (cosmic microwave background) anisotropy maps
+
+This report builds the theory from scratch, starting from Laplace's equation,
+deriving Legendre polynomials and their associated counterparts, and assembling
+the final spherical harmonics with all their key properties proved.  The second
+half documents the accompanying Python GUI project that lets the reader
+interactively explore every mode.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. LAPLACE'S EQUATION IN SPHERICAL COORDINATES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Laplace's equation,
+
+    ∇²T = 0,
+
+appears whenever a physical quantity T (electric potential, temperature,
+gravitational potential, velocity potential) obeys a conservation law with no
+sources inside the domain.
+
+In spherical coordinates (r, theta, phi) — where theta in [0,pi] is the polar
+angle from the positive z-axis and phi in [0, 2pi] is the azimuthal angle —
+the Laplacian is:
+
+    ∇²T = (1/r²) d/dr(r² dT/dr)
+           + (1/(r² sin theta)) d/dtheta(sin theta dT/dtheta)
+           + (1/(r² sin²theta)) d²T/dphi²
+
+This looks intimidating, but the separation-of-variables method transforms it
+into three decoupled ordinary differential equations — one for each coordinate.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. SEPARATION OF VARIABLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+We assume T(r,theta,phi) = R(r) · Theta(theta) · Phi(phi) and substitute into
+Laplace's equation.  After dividing through by R·Theta·Phi:
+
+    (1/R) d/dr(r² dR/dr)
+    + (1/(Theta sin theta)) d/dtheta(sin theta dTheta/dtheta)
+    + (1/(Phi sin²theta)) d²Phi/dphi²
+    = 0
+
+Because the first term depends only on r, and the other two terms depend only
+on (theta, phi), we can separate:
+
+    (1/R) d/dr(r² dR/dr)  =  l(l+1)             [radial separation const.]
+
+    (1/(Theta sin theta)) d/dtheta(sin theta dTheta/dtheta)
+    + (1/(Phi sin²theta)) d²Phi/dphi²  =  -l(l+1)
+
+Further separating the angular part:
+
+    (1/Phi) d²Phi/dphi²  =  -m²                  [azimuthal separation const.]
+
+The choice of separation constants l(l+1) and m² is not arbitrary — it is
+forced by the requirement that solutions be finite and single-valued
+everywhere on the sphere.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. THE AZIMUTHAL EQUATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The phi-equation is the simplest:
+
+    d²Phi/dphi²  =  -m² Phi
+
+    =>  Phi(phi)  =  A e^{imphi} + B e^{-imphi}
+
+Single-valuedness requires Phi(phi + 2pi) = Phi(phi), which forces m to be an
+INTEGER:  m in { ..., -2, -1, 0, 1, 2, ... }
+
+The standard choice is to write the two independent solutions as
+    Phi_m(phi) = e^{imphi}  for each integer m.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. LEGENDRE POLYNOMIALS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Setting m = 0 (azimuthal symmetry) reduces the polar equation to:
+
+    (1/sin theta) d/dtheta(sin theta dTheta/dtheta) + l(l+1) Theta = 0
+
+Substituting x = cos theta  (so x in [-1,1]):
+
+    d/dx[(1-x²) dy/dx]  +  l(l+1) y  =  0          (Legendre equation)
+
+This is a Sturm-Liouville equation.  Solutions that are FINITE at both
+endpoints x = ±1 (i.e. at theta = 0 and theta = pi, the north and south poles)
+exist ONLY when l is a non-negative integer, and those solutions are the
+LEGENDRE POLYNOMIALS P_l(x).
+
+── 5.1 RODRIGUES' FORMULA ─────────────────────────────────────────────────────
+
+The most compact definition:
+
+    P_l(x)  =  (1 / (2^l l!)) d^l/dx^l [(x² - 1)^l]
+
+This immediately shows:
+  • P_l is a polynomial of degree exactly l
+  • P_l(1) = 1  for all l  (north pole value always 1)
+  • P_l(-1) = (-1)^l       (south pole alternates sign)
+
+── 5.2 EXPLICIT POLYNOMIALS ───────────────────────────────────────────────────
+
+    P_0(x)  =  1
+    P_1(x)  =  x
+    P_2(x)  =  (3x² - 1) / 2
+    P_3(x)  =  (5x³ - 3x) / 2
+    P_4(x)  =  (35x⁴ - 30x² + 3) / 8
+    P_5(x)  =  (63x⁵ - 70x³ + 15x) / 8
+    P_6(x)  =  (231x⁶ - 315x⁴ + 105x² - 5) / 16
+    P_7(x)  =  (429x⁷ - 693x⁵ + 315x³ - 35x) / 16
+    P_8(x)  =  (6435x⁸ - 12012x⁶ + 6930x⁴ - 1260x² + 35) / 128
+    P_9(x)  =  (12155x⁹ - 25740x⁷ + 18018x⁵ - 4620x³ + 315x) / 128
+    P_10(x) =  (46189x¹⁰ - 109395x⁸ + 90090x⁶ - 30030x⁴ + 3465x² - 63) / 256
+
+In terms of theta (x = cos theta):
+    P_0 = 1                         (uniform)
+    P_1 = cos theta                  (dipole — bright at north pole)
+    P_2 = (3cos²theta - 1)/2        (quadrupole — two bands)
+    P_3 = (5cos³theta - 3costheta)/2 (octupole — three bands)
+
+── 5.3 RECURRENCE RELATION ────────────────────────────────────────────────────
+
+Instead of Rodrigues' formula, the three-term recurrence is used in practice:
+
+    (l+1) P_{l+1}(x)  =  (2l+1) x P_l(x)  -  l P_{l-1}(x)
+
+Starting from P_0 = 1 and P_1 = x, this generates all higher polynomials in
+O(l) arithmetic operations — very efficient for numerical computation.
+
+── 5.4 ORTHOGONALITY ──────────────────────────────────────────────────────────
+
+Legendre polynomials are orthogonal on [-1, 1] with weight function w(x) = 1:
+
+    ∫_{-1}^{1} P_l(x) P_{l'}(x) dx  =  [2/(2l+1)] delta_{ll'}
+
+This is fundamental: it means every "projection" is independent, enabling the
+expansion of arbitrary functions in a Legendre series just like a Fourier series.
+
+Expansion:  f(x)  =  sum_{l=0}^{infty}  c_l P_l(x)
+
+Coefficients:  c_l  =  [(2l+1)/2] ∫_{-1}^{1} f(x) P_l(x) dx
+
+── 5.5 GENERATING FUNCTION ────────────────────────────────────────────────────
+
+The Legendre polynomials are encoded in a single generating function:
+
+    1 / sqrt(1 - 2xt + t²)  =  sum_{l=0}^{infty} P_l(x) t^l    (|t| < 1)
+
+This is physically important: in electrostatics, the Coulomb potential 1/|r-r'|
+has exactly this form, which is why multipole expansions in terms of P_l arise
+so naturally.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. ASSOCIATED LEGENDRE POLYNOMIALS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When m ≠ 0, the polar equation becomes:
+
+    (1-x²) d²y/dx²  -  2x dy/dx  +  [l(l+1) - m²/(1-x²)] y  =  0
+
+This is the ASSOCIATED LEGENDRE equation.  The extra m²/(1-x²) term — which
+diverges at x = ±1 — demands careful treatment to keep solutions finite at
+the poles.
+
+── 6.1 DEFINITION ─────────────────────────────────────────────────────────────
+
+    P_l^m(x)  =  (-1)^m (1-x²)^{m/2}  d^m/dx^m  P_l(x)     (m >= 0)
+
+For negative m:
+
+    P_l^{-m}(x)  =  (-1)^m [(l-m)!/(l+m)!]  P_l^m(x)
+
+The factor (1-x²)^{m/2} = sin^m(theta) is the key: it automatically vanishes
+at the poles (theta = 0 or pi), preventing the divergence from the m²/(1-x²)
+term.  This is why regularity at the poles restricts |m| <= l.
+
+EXPLICIT EXAMPLES (x = cos theta):
+
+  l=0, m=0:  P_0^0 = 1
+  l=1, m=0:  P_1^0 = cos theta
+  l=1, m=1:  P_1^1 = -sin theta
+  l=2, m=0:  P_2^0 = (3cos²theta - 1)/2
+  l=2, m=1:  P_2^1 = -3 sin theta cos theta
+  l=2, m=2:  P_2^2 = 3 sin²theta
+  l=3, m=0:  P_3^0 = (5cos³theta - 3costheta)/2
+  l=3, m=1:  P_3^1 = -(3/2) sin theta (5cos²theta - 1)
+  l=3, m=2:  P_3^2 = 15 sin²theta cos theta
+  l=3, m=3:  P_3^3 = -15 sin³theta
+
+── 6.2 NODE STRUCTURE ─────────────────────────────────────────────────────────
+
+A crucial result: P_l^m(cos theta) has exactly (l - |m|) zeros in (0, pi).
+
+These zeros are the POLAR NODES — circles of latitude where the function
+vanishes.  Combined with the azimuthal oscillation from e^{imphi}, the total
+number of nodal lines on the sphere is always l, split as:
+
+    l - |m|  polar nodal circles  (lines of latitude)
+      |m|    azimuthal nodal lines (lines of longitude, from e^{imphi})
+
+── 6.3 ORTHOGONALITY ──────────────────────────────────────────────────────────
+
+    ∫_{-1}^{1} P_l^m(x) P_{l'}^m(x) dx  =  [2/(2l+1)] [(l+m)!/(l-m)!] delta_{ll'}
+
+Note the factorial ratio [(l+m)!/(l-m)!] = 1 when m = 0, recovering the
+ordinary Legendre result.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. THE RADIAL EQUATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The radial part of Laplace's equation is:
+
+    r² d²R/dr²  +  2r dR/dr  -  l(l+1) R  =  0
+
+This is an EULER-CAUCHY equation.  Trying R(r) = r^s:
+
+    s(s-1) + 2s - l(l+1)  =  0
+    s² + s - l(l+1)  =  0
+    (s - l)(s + l + 1)  =  0
+
+So s = l  or  s = -(l+1), giving the general solution:
+
+    R(r)  =  A r^l  +  B r^{-(l+1)}
+
+Physical interpretation:
+  • r^l      grows toward the origin — used for INTERIOR problems (r < R)
+  • r^{-(l+1)} decays away from origin — used for EXTERIOR problems (r > R)
+
+Full solution to Laplace's equation:
+
+    T(r,theta,phi)  =  sum_{l=0}^{infty}  sum_{m=-l}^{l}
+                       [A_{lm} r^l  +  B_{lm} r^{-(l+1)}]  P_l^m(cos theta) e^{imphi}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. SPHERICAL HARMONICS Y_l^m(theta, phi)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The angular factors combine into a single, normalised object:
+
+    Y_l^m(theta, phi)  =  N_l^m  P_l^m(cos theta)  e^{imphi}
+
+where the normalisation constant ensures unit norm over the full sphere:
+
+    N_l^m  =  sqrt[ (2l+1)/(4pi)  *  (l-|m|)!/(l+|m|)! ]
+
+Index ranges:  l in {0,1,2,...},   m in {-l, -l+1, ..., 0, ..., l-1, l}
+For each l there are (2l+1) independent harmonics.
+
+── 8.1 EXPLICIT TABLE (l = 0, 1, 2, 3) ───────────────────────────────────────
+
+l=0:
+    Y_0^0  = (1/2) sqrt(1/pi)
+
+l=1:
+    Y_1^0  = (1/2) sqrt(3/pi)  cos theta
+    Y_1^1  = -(1/2) sqrt(3/(2pi))  sin theta  e^{iphi}
+    Y_1^{-1}= (1/2) sqrt(3/(2pi))  sin theta  e^{-iphi}
+
+l=2:
+    Y_2^0  = (1/4) sqrt(5/pi)   (3cos²theta - 1)
+    Y_2^1  = -(1/2) sqrt(15/(2pi))  sin theta cos theta  e^{iphi}
+    Y_2^{-1}= (1/2) sqrt(15/(2pi))  sin theta cos theta  e^{-iphi}
+    Y_2^2  = (1/4) sqrt(15/(2pi))  sin²theta  e^{2iphi}
+    Y_2^{-2}= (1/4) sqrt(15/(2pi))  sin²theta  e^{-2iphi}
+
+l=3:
+    Y_3^0  = (1/4) sqrt(7/pi)    (5cos³theta - 3costheta)
+    Y_3^1  = -(1/8) sqrt(21/pi)  sin theta (5cos²theta - 1)  e^{iphi}
+    Y_3^{-1}= (1/8) sqrt(21/pi)  sin theta (5cos²theta - 1)  e^{-iphi}
+    Y_3^2  = (1/4) sqrt(105/(2pi)) sin²theta costheta  e^{2iphi}
+    Y_3^{-2}= (1/4) sqrt(105/(2pi)) sin²theta costheta e^{-2iphi}
+    Y_3^3  = -(1/8) sqrt(35/pi)  sin³theta  e^{3iphi}
+    Y_3^{-3}= (1/8) sqrt(35/pi)  sin³theta  e^{-3iphi}
+
+── 8.2 PHYSICAL MEANING OF l AND m ────────────────────────────────────────────
+
+    l   degree / angular momentum quantum number
+        Controls the total number of nodal lines on the sphere.
+        Higher l = finer angular structure = more oscillations.
+
+    m   order / azimuthal quantum number
+        Controls azimuthal periodicity: e^{imphi} completes |m| cycles around
+        the z-axis.
+        m > 0: counterclockwise oscillation
+        m < 0: clockwise oscillation
+        m = 0: no azimuthal variation (axially symmetric)
+
+── 8.3 ORTHONORMALITY ─────────────────────────────────────────────────────────
+
+    ∫_0^{2pi} ∫_0^pi [Y_{l'}^{m'}(theta,phi)]* Y_l^m(theta,phi) sin theta d theta d phi
+    =  delta_{ll'} delta_{mm'}
+
+where dOmega = sin theta dtheta dphi is the solid angle element.
+
+Consequence: coefficients in a spherical harmonic expansion can be extracted
+independently, just as Fourier coefficients can:
+
+    f_{lm}  =  ∫ [Y_l^m]* f(theta,phi) dOmega
+
+── 8.4 COMPLETENESS ───────────────────────────────────────────────────────────
+
+The set {Y_l^m} is COMPLETE on the sphere — every square-integrable function
+has a unique expansion:
+
+    f(theta,phi)  =  sum_{l=0}^{infty}  sum_{m=-l}^{l}  f_{lm} Y_l^m(theta,phi)
+
+This is the SPHERICAL HARMONIC SERIES, analogous to a Fourier series.
+
+── 8.5 SYMMETRY PROPERTIES ────────────────────────────────────────────────────
+
+    Conjugate symmetry:  [Y_l^m]*  =  (-1)^m  Y_l^{-m}
+    Parity:              Y_l^m(pi-theta, phi+pi)  =  (-1)^l  Y_l^m(theta,phi)
+    z-axis evaluation:   Y_l^m(0, phi)  =  sqrt[(2l+1)/(4pi)]  delta_{m0}
+
+── 8.6 EIGENVALUE OF THE ANGULAR LAPLACIAN ────────────────────────────────────
+
+The angular part of ∇² acting on the sphere is:
+
+    ∇²_Omega  =  (1/sin theta) d/dtheta(sin theta d/dtheta)  +  (1/sin²theta) d²/dphi²
+
+The spherical harmonics are its EIGENFUNCTIONS:
+
+    ∇²_Omega Y_l^m  =  -l(l+1) Y_l^m         eigenvalue lambda = -l(l+1)
+
+This is the central equation: it is why spherical harmonics diagonalise every
+physical operator involving ∇² on a sphere.
+
+── 8.7 ADDITION THEOREM ───────────────────────────────────────────────────────
+
+For two unit vectors n and n' separated by angle gamma:
+
+    P_l(cos gamma)  =  [4pi/(2l+1)]  sum_{m=-l}^{l}  [Y_l^m(n')]* Y_l^m(n)
+
+Equivalently:  sum_{m=-l}^{l} |Y_l^m(theta,phi)|²  =  (2l+1)/(4pi)
+
+This sum is independent of angles — a beautiful rotational invariance result.
+
+── 8.8 REAL SPHERICAL HARMONICS ───────────────────────────────────────────────
+
+For many applications (e.g. visualisation, quantum chemistry) one prefers
+real-valued functions.  The real spherical harmonics are:
+
+    Y_{l,m}^{real}  =  (1/sqrt2) [Y_l^{-|m|} + (-1)^m Y_l^{|m|}]   m < 0
+    Y_{l,0}^{real}  =  Y_l^0                                           m = 0
+    Y_{l,m}^{real}  =  (i/sqrt2) [Y_l^{-|m|} - (-1)^m Y_l^{|m|}]   m > 0
+
+These are the familiar s, p_x, p_y, p_z, d_{z²}, d_{xy}, ... orbitals.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. PHYSICAL APPLICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── 9.1 QUANTUM MECHANICS — HYDROGEN ATOM ──────────────────────────────────────
+
+The electron wavefunctions of hydrogen are:
+
+    psi_{nlm}(r,theta,phi)  =  R_{nl}(r) Y_l^m(theta,phi)
+
+Here l is the orbital angular momentum quantum number and m is its z-component.
+The angular shapes of the orbitals are entirely encoded in Y_l^m:
+  l=0 (s-orbital): Y_0^0 — spherically symmetric, no nodes
+  l=1 (p-orbital): Y_1^m — dumbbell shapes along x, y, z axes
+  l=2 (d-orbital): Y_2^m — the five d-orbital shapes
+  l=3 (f-orbital): Y_3^m — the seven f-orbital shapes
+
+The eigenvalue equation ∇²_Omega Y_l^m = -l(l+1) Y_l^m directly gives the
+eigenvalue of L² (squared angular momentum operator): L² = hbar² l(l+1).
+
+── 9.2 CLASSICAL ELECTROSTATICS ───────────────────────────────────────────────
+
+The potential of a charge distribution rho(r) is expanded as:
+
+    V(r,theta,phi)  =  sum_{l,m}  [4pi/(2l+1)]  [q_{lm}/r^{l+1}] Y_l^m(theta,phi)
+
+where q_{lm} = ∫ rho(r') r'^l Y_l^m*(theta',phi') dV' are the multipole moments.
+  l=0: monopole (total charge)
+  l=1: dipole
+  l=2: quadrupole
+  l>=3: higher multipoles, negligible at large distances
+
+── 9.3 GRAVITATIONAL MULTIPOLES / GEOID ───────────────────────────────────────
+
+The Earth's gravitational potential is expressed as a sum Y_l^m on the
+celestial sphere.  The dominant non-spherical term is Y_2^0, the J2 flattening
+coefficient.  GPS satellites must correct for hundreds of spherical harmonic
+coefficients to compute accurate orbits.
+
+── 9.4 VESICLE MEMBRANE FLUCTUATIONS ──────────────────────────────────────────
+
+A lipid vesicle (a spherical membrane) deforms thermally.  Writing the radius as:
+
+    r(theta,phi)  =  R_0 [1 + sum_{l>=2} sum_{m=-l}^{l} u_{lm} Y_l^m(theta,phi)]
+
+the bending energy of each mode is:
+
+    E_{lm}  =  (kappa/2)  l(l+1)[l(l+1)-2]  |u_{lm}|²
+
+where kappa is the bending rigidity.  By equipartition:
+
+    <|u_{lm}|²>  =  k_B T / [kappa l(l+1)(l(l+1)-2)]
+
+Modes l=0 and l=1 are excluded:
+  l=0: volume change, suppressed by incompressibility
+  l=1: rigid translation, zero bending energy
+  l>=2: real physical fluctuations, measured by flicker spectroscopy
+
+── 9.5 SEISMOLOGY ─────────────────────────────────────────────────────────────
+
+The free oscillations of the Earth (normal modes) are described by spherical
+harmonics.  Mode _0S_2 is the "football mode" (l=2), the slowest spheroidal
+oscillation with a period of ~54 minutes.  Seismologists use the angular
+degree l and azimuthal order m to label every eigenmode of the Earth.
+
+── 9.6 COMPUTER GRAPHICS — SPHERICAL HARMONICS LIGHTING ───────────────────────
+
+Environment lighting (the sky, reflections) is stored as a low-degree spherical
+harmonic expansion.  Using only l=0,1,2 (9 coefficients total) captures the
+smooth, low-frequency part of any lighting environment with very little memory.
+This technique is used in real-time rendering engines (games, films) to
+simulate global illumination at interactive frame rates.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+10. MODE ANALYSIS: WHY l >= 2 MATTERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For membrane and many other physical systems, the modes l=0 and l=1 must be
+treated separately:
+
+    l = 0 (uniform mode)
+        Y_0^0 = constant.  This mode changes the sphere's total volume
+        uniformly.  For an incompressible membrane it is suppressed.
+        Bending energy factor: 0 * (-2) = 0.
+
+    l = 1 (translation modes)
+        Y_1^m shifts the centre of mass.  This is a rigid-body translation —
+        it costs zero bending energy.
+        Bending factor: 2 * 0 = 0.
+
+    l >= 2 (genuine shape modes)
+        These are true deformations of the membrane surface.  The bending
+        energy factor l(l+1)[l(l+1)-2] is positive and grows as l^4 for
+        large l.  Thermal fluctuations are therefore concentrated at low l:
+
+          l   l(l+1)   bending factor
+          2     6         24
+          3    12        120
+          4    20        360
+          5    30        840
+          6    42       1680
+          7    56       3024
+          8    72       5040
+         10   110      11880
+
+The fluctuation amplitude scales as (bending factor)^{-1}, so the l=2
+quadrupolar mode dominates by far — this is why vesicle membranes appear
+to fluctuate with broad, smooth shapes rather than rapid wiggles.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+11. PYTHON PROJECT: SPHERICAL HARMONICS EXPLORER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── 11.1 PROJECT ARCHITECTURE ──────────────────────────────────────────────────
+
+    spherical_harmonics_explorer/
+    ├── main.py                  Entry point
+    ├── requirements.txt         numpy, scipy, matplotlib
+    ├── README.md                GitHub documentation
+    └── explorer/
+        ├── __init__.py
+        ├── math_core.py         All mathematics
+        ├── plotter.py           All five subplot renderers
+        └── app.py               Tkinter GUI
+
+The project is split into three strictly separated concerns:
+  1. MATHEMATICS (math_core.py) — pure functions, no GUI dependency
+  2. RENDERING   (plotter.py)   — matplotlib only, no tkinter
+  3. INTERACTION (app.py)       — tkinter only, calls 1 and 2
+
+This separation means math_core.py can be imported and used in Jupyter
+notebooks, scripts, or any other context without touching the GUI.
+
+── 11.2 math_core.py ──────────────────────────────────────────────────────────
+
+Key functions:
+
+  Y(l, m, theta, phi)
+      Returns the complex array Y_l^m evaluated on the given grid.
+      Uses scipy.special.sph_harm_y (scipy >= 1.15 API).
+
+  normalization(l, m)
+      Returns the scalar N_l^m = sqrt[(2l+1)/(4pi) * (l-|m|)!/(l+|m|)!]
+      Computed exactly using math.factorial to avoid float overflow.
+
+  assoc_legendre_normalized(l, m, theta)
+      Returns N_l^m * P_l^|m|(cos theta) — the real polar factor used in
+      the 1-D profile subplot.  Uses scipy.special.lpmv.
+
+  spherical_grid(l, m, n=110)
+      Returns (THETA, PHI, Ylm) on an (n x n) meshgrid.
+      THETA[i,j] = theta_1d[j], PHI[i,j] = phi_1d[i].
+
+  mode_properties(l, m)
+      Returns an ordered dict of all scalar properties:
+      eigenvalue, polar nodes, azimuthal nodes, degeneracy,
+      normalisation constant, parity, bending energy factor.
+
+  LEGENDRE_EXPLICIT
+      Dictionary mapping l -> LaTeX string for P_l(x) (l=0 to 10).
+      Used in the equations panel of the GUI.
+
+── 11.3 plotter.py ────────────────────────────────────────────────────────────
+
+Entry point:  update_figure(fig, l, m, component, cmap, n)
+
+Five subplot renderers, each receiving the pre-computed Ylm grid:
+
+  _draw_3d(ax, ...)
+      3-D shape plot.  Radius r = |extract(Ylm)|, colour = extract(Ylm).
+      Uses ax.plot_surface with facecolors from a custom ScalarMappable.
+      Enforces equal 3-D aspect ratio via _set_axes_equal_3d().
+      Attaches a colourbar.
+
+  _draw_polar(ax, ...)
+      Polar plot of |Y_l^m(theta, phi=0)| mirrored to [0, 2pi].
+      Fills positive/negative regions in different colours.
+
+  _draw_heatmap(ax, ...)
+      pcolormesh of Re(Ylm) on the (phi, theta) plane.
+      phi [0,360 deg] on x-axis, theta [0,180 deg] on y-axis.
+
+  _draw_theta_profile(ax, ...)
+      1-D plot of N * P_l^|m|(cos theta) vs theta [0, 180 deg].
+      Detects sign changes and marks polar nodes with dashed vertical lines.
+      Fills positive/negative regions.
+
+  _draw_equations(ax, ...)
+      Text panel using ax.text() with matplotlib mathtext.
+      Renders 9 rows: general Y_l^m, this specific mode, P_l(x),
+      associated Legendre, Rodrigues, eigenvalue, orthonormality,
+      node count, bending energy factor.
+
+  _extract(Ylm, component)
+      Extracts real / imag / abs / phase from complex Ylm.
+
+── 11.4 app.py (GUI) ──────────────────────────────────────────────────────────
+
+Class SphericalHarmonicsApp, built on tkinter + ttk.
+
+Layout:
+  Left sidebar (270 px fixed):
+    • Branding header
+    • l spinbox (0–10)
+    • m spinbox (auto-bounded to [-l, +l])
+    • Constraint validity label (green tick / red cross)
+    • Component radio buttons (Real/Imag/Abs/Phase)
+    • Colormap combobox (10 choices)
+    • Navigation buttons (◄ l ►, ◄ m ►)
+    • Mode properties text widget
+    • Action buttons: Export PNG/PDF, Reset, Physics Reference
+
+  Right area:
+    • FigureCanvasTkAgg embedding the matplotlib figure
+    • NavigationToolbar2Tk for zoom/pan/rotate
+
+  Bottom status bar:
+    • Live display of Y_l^m | lambda | polar nodes | azimuthal nodes | N
+
+Key design decisions:
+  • Debounced update (180 ms after-() delay) — prevents multiple rapid
+    redraws when the user holds down a spinbox arrow.
+  • m spinbox bounds update automatically when l changes.
+  • m is clamped to [-l, l] on every change.
+  • The Physics Reference popup is a separate Toplevel with a scrollable
+    Text widget containing all key formulae.
+  • Export uses filedialog.asksaveasfilename and supports PNG/PDF/SVG.
+
+── 11.5 USAGE GUIDE ───────────────────────────────────────────────────────────
+
+Installation:
+    pip install numpy scipy matplotlib
+    # tkinter is bundled with standard Python
+    # On Ubuntu/Debian: sudo apt-get install python3-tk
+
+Running:
+    python main.py
+
+Controls:
+    l spinbox or ◄/► buttons     Change degree (0 to 10)
+    m spinbox or ◄/► buttons     Change order  (-l to +l), auto-clamped
+    Component radio buttons      Switch between Re, Im, |Y|, Phase
+    Colormap dropdown            10 colour maps available
+    💾 Export                    Save as PNG / PDF / SVG at 200 DPI
+    🔄 Reset                     Return to Y_2^0
+    ℹ️ Physics Reference          Popup with all formulae
+
+Reading the five subplots:
+    3-D shape        Radius = magnitude, colour = sign
+                     Blue lobes = positive, red = negative (with RdBu_r)
+    Polar            Cross-section at phi=0, mirrored to full circle
+    Heatmap          Re(Y) across the (phi, theta) parameter space
+    Polar profile    1-D slice N*P_l^m vs theta; dashed lines = nodes
+    Equations        Live formulae with numerical values for current mode
+
+── 11.6 GITHUB SETUP ──────────────────────────────────────────────────────────
+
+Recommended repository structure:
+
+    spherical-harmonics-explorer/
+    ├── .gitignore         (Python standard)
+    ├── LICENSE            (MIT)
+    ├── README.md
+    ├── requirements.txt
+    ├── main.py
+    └── explorer/
+        ├── __init__.py
+        ├── math_core.py
+        ├── plotter.py
+        └── app.py
+
+Suggested .gitignore entries:
+    __pycache__/
+    *.pyc
+    .DS_Store
+    *.png       (generated output images)
+    *.pdf       (generated output files)
+
+Commit message convention:
+    feat: add Y_l^m 3D visualizer
+    fix:  clamp m bounds on l change
+    docs: add physics reference popup
+    refactor: separate math_core from plotter
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+12. SUMMARY OF KEY FORMULAE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Legendre polynomial (Rodrigues):
+      P_l(x)  =  (1/(2^l l!)) d^l/dx^l (x^2-1)^l
+
+  Recurrence relation:
+      (l+1)P_{l+1} = (2l+1)x P_l - l P_{l-1}
+
+  Orthogonality:
+      ∫_{-1}^{1} P_l P_{l'} dx  =  [2/(2l+1)] delta_{ll'}
+
+  Associated Legendre:
+      P_l^m(x) = (-1)^m (1-x^2)^{m/2} d^m/dx^m P_l(x)
+
+  Normalisation constant:
+      N_l^m  =  sqrt[(2l+1)/(4pi)  (l-|m|)!/(l+|m|)!]
+
+  Spherical harmonic:
+      Y_l^m(theta,phi)  =  N_l^m P_l^m(cos theta) e^{imphi}
+
+  Eigenvalue equation:
+      ∇^2_Omega Y_l^m  =  -l(l+1) Y_l^m
+
+  Orthonormality:
+      <Y_{l'}^{m'} | Y_l^m>  =  delta_{ll'} delta_{mm'}
+
+  Completeness:
+      f(theta,phi)  =  sum_{l=0}^{infty} sum_{m=-l}^{l} f_{lm} Y_l^m
+
+  Parity:
+      Y_l^m(pi-theta, phi+pi)  =  (-1)^l Y_l^m(theta,phi)
+
+  Conjugate symmetry:
+      [Y_l^m]*  =  (-1)^m Y_l^{-m}
+
+  Bending energy (membranes):
+      E_{lm}  =  (kappa/2) l(l+1)[l(l+1)-2] |u_{lm}|^2
+
+  Thermal amplitude:
+      <|u_{lm}|^2>  =  k_B T / [kappa l(l+1)(l(l+1)-2)]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+13. REFERENCES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1]  Jackson, J.D.  Classical Electrodynamics (3rd ed.).  Wiley, 1999.
+     — Chapters 3 and 4 for multipole expansion and spherical harmonics.
+
+[2]  Arfken, G.B.; Weber, H.J.; Harris, F.E.
+     Mathematical Methods for Physicists (7th ed.).  Academic Press, 2012.
+     — Chapters 15–16 for Legendre and associated Legendre functions.
+
+[3]  Griffiths, D.J.  Introduction to Quantum Mechanics (3rd ed.).
+     Cambridge University Press, 2018.
+     — Chapter 4 for hydrogen atom wavefunctions.
+
+[4]  Seifert, U.  "Configurations of Fluid Membranes and Vesicles."
+     Advances in Physics, 46(1), 13–137 (1997).
+     — Section 2 for spherical harmonic decomposition of membrane shape.
+
+[5]  Hobson, E.W.  The Theory of Spherical and Ellipsoidal Harmonics.
+     Cambridge University Press, 1931.  (Classic reference.)
+
+[6]  scipy.special.sph_harm_y documentation.
+     https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.sph_harm_y.html
+
+[7]  DLMF — Digital Library of Mathematical Functions, Chapter 14:
+     Legendre and Related Functions.  https://dlmf.nist.gov/14
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

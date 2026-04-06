@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spherical Harmonics Scientific Scroll Dashboard</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b1119;
+      --bg-soft: #111927;
+      --text: #e7edf8;
+      --muted: #9eafc8;
+      --accent: #90beff;
+      --divider: #273449;
+      --card: #0f1825;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      scroll-behavior: smooth;
+    }
+
+    #root {
+      min-height: 100vh;
+    }
+
+    .scroll-container {
+      scroll-snap-type: y proximity;
+    }
+
+    .chapter-section {
+      min-height: 80vh;
+      scroll-snap-align: start;
+      padding: 56px 6vw;
+      border-top: 1px solid var(--divider);
+    }
+
+    .section-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.015em;
+      margin: 0 0 0.5rem;
+    }
+
+    .section-subtitle {
+      color: var(--muted);
+      margin: 0 0 1.5rem;
+      font-size: 0.98rem;
+    }
+
+    .plot-shell {
+      width: 100%;
+      background: transparent;
+      border-radius: 10px;
+    }
+
+    .plot-xl {
+      height: min(78vh, 900px);
+      min-height: 560px;
+    }
+
+    .plot-lg {
+      height: min(62vh, 680px);
+      min-height: 460px;
+    }
+
+    .plot-md {
+      height: min(56vh, 620px);
+      min-height: 420px;
+    }
+
+    .control-card {
+      background: rgba(13, 21, 33, 0.95);
+      border: 1px solid #2b3a50;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+      padding: 14px 16px;
+    }
+
+    .step-btn {
+      width: 30px;
+      height: 30px;
+      border: 1px solid #3f5576;
+      background: #192739;
+      color: #e6f0ff;
+      border-radius: 6px;
+      cursor: pointer;
+      line-height: 1;
+      font-size: 16px;
+    }
+
+    .step-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .num-input {
+      width: 72px;
+      text-align: center;
+      background: #0d1624;
+      border: 1px solid #3e5372;
+      color: #edf4ff;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-weight: 600;
+    }
+
+    .math-paper {
+      background: #f8fafc;
+      color: #16253a;
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+    }
+
+    .math-block {
+      background: #ffffff;
+      border: 1px solid #d7e0ec;
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .katex-display {
+      margin: 0.35rem 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .right-nav {
+      position: fixed;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 40;
+      background: rgba(11, 17, 25, 0.9);
+      border: 1px solid #2b3a50;
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .right-nav button {
+      color: #cbd8ed;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .right-nav button:hover {
+      border-color: #3b5172;
+      color: #edf3ff;
+    }
+
+    @media (max-width: 960px) {
+      .chapter-section {
+        padding: 44px 5vw;
+      }
+
+      .right-nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useCallback, useEffect, useMemo, useRef, useState } = React;
+
+    function factorial(n) {
+      if (n <= 1) return 1;
+      let out = 1;
+      for (let i = 2; i <= n; i += 1) out *= i;
+      return out;
+    }
+
+    function normalization(l, mAbs) {
+      return Math.sqrt(((2 * l + 1) / (4 * Math.PI)) * (factorial(l - mAbs) / factorial(l + mAbs)));
+    }
+
+    function associatedLegendreValue(l, m, x) {
+      if (m < 0 || m > l) return 0;
+      let pmm = 1.0;
+      if (m > 0) {
+        const somx2 = Math.sqrt(Math.max(0, (1 - x) * (1 + x)));
+        let fact = 1.0;
+        for (let i = 1; i <= m; i += 1) {
+          pmm *= -fact * somx2;
+          fact += 2.0;
+        }
+      }
+      if (l === m) return pmm;
+      let pmmp1 = x * (2 * m + 1) * pmm;
+      if (l === m + 1) return pmmp1;
+
+      let pll = 0;
+      for (let ll = m + 2; ll <= l; ll += 1) {
+        pll = ((2 * ll - 1) * x * pmmp1 - (ll + m - 1) * pmm) / (ll - m);
+        pmm = pmmp1;
+        pmmp1 = pll;
+      }
+      return pll;
+    }
+
+    function clampM(l, m) {
+      return Math.max(-l, Math.min(l, m));
+    }
+
+    function legendreCoefficients(l) {
+      const coeffs = new Map();
+      for (let k = 0; k <= Math.floor(l / 2); k += 1) {
+        const sign = (k % 2 === 0) ? 1 : -1;
+        const coeff = sign * (factorial(2 * l - 2 * k) /
+          (Math.pow(2, l) * factorial(k) * factorial(l - k) * factorial(l - 2 * k)));
+        const pow = l - 2 * k;
+        coeffs.set(pow, (coeffs.get(pow) || 0) + coeff);
+      }
+      return coeffs;
+    }
+
+    function derivativeCoefficients(coeffs, times) {
+      let current = new Map(coeffs);
+      for (let t = 0; t < times; t += 1) {
+        const next = new Map();
+        current.forEach((c, p) => {
+          if (p > 0) {
+            next.set(p - 1, (next.get(p - 1) || 0) + c * p);
+          }
+        });
+        current = next;
+      }
+      return current;
+    }
+
+    function coeffToLatex(value) {
+      const v = Number(value.toFixed(6));
+      if (Math.abs(v) < 1e-10) return "0";
+      if (Math.abs(v - 1) < 1e-10) return "1";
+      if (Math.abs(v + 1) < 1e-10) return "-1";
+      return v.toString();
+    }
+
+    function polyMapToLatex(coeffs, variable = "x") {
+      const powers = [...coeffs.keys()].sort((a, b) => b - a);
+      if (powers.length === 0) return "0";
+      const parts = [];
+
+      for (let i = 0; i < powers.length; i += 1) {
+        const p = powers[i];
+        const c = coeffs.get(p);
+        if (Math.abs(c) < 1e-12) continue;
+        const sign = c < 0 ? "-" : "+";
+        const absC = Math.abs(c);
+        const coeffLatex = coeffToLatex(absC);
+
+        let term = "";
+        if (p === 0) {
+          term = coeffLatex;
+        } else if (p === 1) {
+          term = (Math.abs(absC - 1) < 1e-10) ? variable : `${coeffLatex}${variable}`;
+        } else {
+          term = (Math.abs(absC - 1) < 1e-10) ? `${variable}^{${p}}` : `${coeffLatex}${variable}^{${p}}`;
+        }
+
+        if (parts.length === 0) {
+          parts.push(sign === "-" ? `-${term}` : term);
+        } else {
+          parts.push(` ${sign} ${term}`);
+        }
+      }
+
+      return parts.join("") || "0";
+    }
+
+    function currentAssociatedLegendreLatex(l, mAbs) {
+      const base = legendreCoefficients(l);
+      const deriv = derivativeCoefficients(base, mAbs);
+      const derivLatex = polyMapToLatex(deriv, "x");
+      if (mAbs === 0) {
+        return `P_{${l}}(x) = ${polyMapToLatex(base, "x")}`;
+      }
+      return String.raw`P_{${l}}^{${mAbs}}(x) = (-1)^{${mAbs}}(1-x^2)^{${mAbs}/2}\left(${derivLatex}\right)`;
+    }
+
+    function tesseralModeLatex(l, m) {
+      const a = Math.abs(m);
+      if (m === 0) {
+        return String.raw`Y_{${l}}^{0}(\theta,\phi)=N_{${l},0}P_{${l}}(\cos\theta)`;
+      }
+      if (m > 0) {
+        return String.raw`Y_{${l},${m}}^{\mathrm{(real)}}(\theta,\phi)=\sqrt{2}N_{${l},${a}}P_{${l}}^{${a}}(\cos\theta)\cos(${a}\phi)`;
+      }
+      return String.raw`Y_{${l},${m}}^{\mathrm{(real)}}(\theta,\phi)=\sqrt{2}N_{${l},${a}}P_{${l}}^{${a}}(\cos\theta)\sin(${a}\phi)`;
+    }
+
+    function generateData(l, m, component = "real", nTheta = 90, nPhi = 181) {
+      const mAbs = Math.abs(m);
+      const norm = normalization(l, mAbs);
+      const theta = [];
+      const phi = [];
+      for (let i = 0; i < nTheta; i += 1) theta.push((i / (nTheta - 1)) * Math.PI);
+      for (let j = 0; j < nPhi; j += 1) phi.push((j / (nPhi - 1)) * 2 * Math.PI);
+
+      const x = [];
+      const y = [];
+      const z = [];
+      const val = [];
+
+      for (let i = 0; i < nTheta; i += 1) {
+        const t = theta[i];
+        const pVal = associatedLegendreValue(l, mAbs, Math.cos(t));
+        const xr = [];
+        const yr = [];
+        const zr = [];
+        const vr = [];
+
+        for (let j = 0; j < nPhi; j += 1) {
+          const p = phi[j];
+          const base = norm * pVal;
+          const re = mAbs === 0 ? base : Math.sqrt(2) * base * Math.cos(mAbs * p);
+          const im = mAbs === 0 ? 0 : Math.sqrt(2) * base * Math.sin(mAbs * p);
+          const amp = Math.hypot(re, im);
+
+          let active = re;
+          if (component === "imag") active = im;
+          if (component === "abs") active = amp;
+
+          const r = Math.abs(active) + 1e-7;
+          xr.push(r * Math.sin(t) * Math.cos(p));
+          yr.push(r * Math.sin(t) * Math.sin(p));
+          zr.push(r * Math.cos(t));
+          vr.push(active);
+        }
+
+        x.push(xr);
+        y.push(yr);
+        z.push(zr);
+        val.push(vr);
+      }
+
+      const maxAbs = Math.max(...val.flat().map((q) => Math.abs(q)), 1e-9);
+      const profileTheta = theta.map((t) => (t * 180) / Math.PI);
+      const profileVal = val.map((row) => row[0]);
+      const heatPhi = [...phi.map((p) => (p * 180) / Math.PI), 360];
+      const heatZ = val.map((row) => [...row, row[0]]);
+
+      const nodalIdx = [];
+      for (let i = 1; i < profileVal.length; i += 1) {
+        const a = profileVal[i - 1];
+        const b = profileVal[i];
+        if ((a === 0) || (a > 0 && b < 0) || (a < 0 && b > 0)) {
+          nodalIdx.push(i);
+        }
+      }
+
+      return {
+        l,
+        m,
+        mAbs,
+        theta,
+        phi,
+        x,
+        y,
+        z,
+        val,
+        maxAbs,
+        profileTheta,
+        profileVal,
+        heatPhi,
+        heatZ,
+        nodalIdx,
+      };
+    }
+
+    function MathTex({ tex, display = true }) {
+      const html = useMemo(() => {
+        if (!window.katex) return tex;
+        try {
+          return window.katex.renderToString(tex, { displayMode: display, throwOnError: false });
+        } catch {
+          return tex;
+        }
+      }, [tex, display]);
+      return <div dangerouslySetInnerHTML={{ __html: html }} />;
+    }
+
+    function usePlotly(plotRef, figure, config) {
+      useEffect(() => {
+        if (!plotRef.current || !figure) return;
+        Plotly.react(plotRef.current, figure.data, figure.layout, config);
+      }, [plotRef, figure, config]);
+    }
+
+    function Section({ id, title, subtitle, children }) {
+      return (
+        <section id={id} className="chapter-section">
+          <div className="section-inner">
+            <h2 className="section-title">{title}</h2>
+            {subtitle ? <p className="section-subtitle">{subtitle}</p> : null}
+            {children}
+          </div>
+        </section>
+      );
+    }
+
+    function ControlPanel({ l, m, component, onLChange, onMChange, onComponentChange, onResetView }) {
+      const stepL = useCallback((delta) => onLChange(l + delta), [l, onLChange]);
+      const stepM = useCallback((delta) => onMChange(m + delta), [m, onMChange]);
+
+      return (
+        <header className="sticky top-0 z-30 px-4 md:px-8 py-3 backdrop-blur bg-slate-950/86 border-b border-slate-800/80">
+          <div className="max-w-6xl mx-auto control-card">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-center gap-4 lg:gap-8">
+              <div className="text-center lg:text-left">
+                <div className="text-sm text-slate-300">Spherical Harmonics Controls</div>
+                <div className="text-xs text-slate-400">Current values: l = {l}, m = {m}</div>
+              </div>
+
+              <div className="flex flex-wrap items-end justify-center gap-5">
+                <div>
+                  <div className="text-xs text-slate-300 mb-1">Degree l</div>
+                  <div className="flex items-center gap-2">
+                    <button className="step-btn" onClick={() => stepL(-1)} disabled={l <= 0}>↓</button>
+                    <input className="num-input" type="number" step="1" min="0" value={l} onChange={(e) => onLChange(Number(e.target.value))} />
+                    <button className="step-btn" onClick={() => stepL(1)}>↑</button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-slate-300 mb-1">Order m</div>
+                  <div className="flex items-center gap-2">
+                    <button className="step-btn" onClick={() => stepM(-1)} disabled={m <= -l}>↓</button>
+                    <input className="num-input" type="number" step="1" min={-l} max={l} value={m} onChange={(e) => onMChange(Number(e.target.value))} />
+                    <button className="step-btn" onClick={() => stepM(1)} disabled={m >= l}>↑</button>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-slate-300 mb-1">Component</div>
+                  <select className="num-input w-[140px]" value={component} onChange={(e) => onComponentChange(e.target.value)}>
+                    <option value="real">Real</option>
+                    <option value="imag">Imaginary</option>
+                    <option value="abs">Absolute</option>
+                  </select>
+                </div>
+
+                <button className="step-btn w-auto px-3 h-[34px] text-sm" onClick={onResetView}>Reset View</button>
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-500 mt-2 text-center">Keyboard: ↑/↓ change l, ←/→ change m</div>
+          </div>
+        </header>
+      );
+    }
+
+    function SphericalPlot3D({ data, onRegisterReset }) {
+      const ref = useRef(null);
+
+      const figure = useMemo(() => ({
+        data: [{
+          type: "surface",
+          x: data.x,
+          y: data.y,
+          z: data.z,
+          surfacecolor: data.val,
+          colorscale: "RdBu",
+          reversescale: true,
+          cmin: -data.maxAbs,
+          cmax: data.maxAbs,
+          colorbar: { title: "Y", len: 0.8, thickness: 11 },
+          hovertemplate: "x=%{x:.3f}<br>y=%{y:.3f}<br>z=%{z:.3f}<br>Y=%{surfacecolor:.3e}<extra></extra>",
+        }],
+        layout: {
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)",
+          margin: { l: 0, r: 0, t: 0, b: 0 },
+          scene: {
+            aspectmode: "data",
+            bgcolor: "rgba(0,0,0,0)",
+            xaxis: { title: "x", gridcolor: "#33435a", zerolinecolor: "#33435a", color: "#dbe7f8" },
+            yaxis: { title: "y", gridcolor: "#33435a", zerolinecolor: "#33435a", color: "#dbe7f8" },
+            zaxis: { title: "z", gridcolor: "#33435a", zerolinecolor: "#33435a", color: "#dbe7f8" },
+            camera: { eye: { x: 1.45, y: 1.45, z: 1.12 } },
+          },
+        },
+      }), [data]);
+
+      const config = useMemo(() => ({
+        responsive: true,
+        displaylogo: false,
+        scrollZoom: true,
+      }), []);
+
+      usePlotly(ref, figure, config);
+
+      useEffect(() => {
+        if (!onRegisterReset) return;
+        onRegisterReset(() => {
+          if (!ref.current) return;
+          Plotly.relayout(ref.current, {
+            "scene.camera.eye": { x: 1.45, y: 1.45, z: 1.12 },
+            "scene.camera.up": { x: 0, y: 0, z: 1 },
+            "scene.camera.center": { x: 0, y: 0, z: 0 },
+          });
+        });
+      }, [onRegisterReset]);
+
+      return <div ref={ref} className="plot-shell plot-xl" />;
+    }
+
+    function PolarPlot({ data }) {
+      const ref = useRef(null);
+      const fullTheta = [...data.profileTheta, ...data.profileTheta.slice().reverse().map((t) => 360 - t)];
+      const profileAbs = data.profileVal.map((v) => Math.abs(v));
+      const fullR = [...profileAbs, ...profileAbs.slice().reverse()];
+      const nodeTheta = data.nodalIdx.map((i) => data.profileTheta[i]);
+      const nodeR = data.nodalIdx.map((i) => Math.abs(data.profileVal[i]));
+
+      const figure = useMemo(() => ({
+        data: [
+          {
+            type: "scatterpolar",
+            theta: fullTheta,
+            r: fullR,
+            mode: "lines",
+            line: { color: "#6bb9ff", width: 2.2 },
+            fill: "toself",
+            fillcolor: "rgba(96,167,255,0.2)",
+            hovertemplate: "theta=%{theta:.1f}°<br>r=%{r:.3e}<extra></extra>",
+          },
+          {
+            type: "scatterpolar",
+            theta: nodeTheta,
+            r: nodeR,
+            mode: "markers",
+            marker: { color: "#ffd07a", size: 7 },
+            hovertemplate: "node<br>theta=%{theta:.1f}°<extra></extra>",
+          },
+        ],
+        layout: {
+          paper_bgcolor: "rgba(0,0,0,0)",
+          margin: { l: 24, r: 24, t: 8, b: 8 },
+          showlegend: false,
+          font: { color: "#e7edf8", size: 12 },
+          polar: {
+            bgcolor: "rgba(0,0,0,0)",
+            radialaxis: { gridcolor: "#33435a", linecolor: "#33435a" },
+            angularaxis: { gridcolor: "#33435a", linecolor: "#33435a" },
+          },
+        },
+      }), [fullTheta, fullR, nodeTheta, nodeR]);
+
+      const config = useMemo(() => ({ responsive: true, displaylogo: false }), []);
+      usePlotly(ref, figure, config);
+      return <div ref={ref} className="plot-shell plot-lg" />;
+    }
+
+    function PolarProfilePlot({ data }) {
+      const ref = useRef(null);
+      const theta = data.profileTheta;
+      const y = data.profileVal;
+      const nodesX = data.nodalIdx.map((i) => theta[i]);
+      const nodesY = data.nodalIdx.map((i) => y[i]);
+
+      const figure = useMemo(() => ({
+        data: [
+          {
+            type: "scatter",
+            x: theta,
+            y,
+            mode: "lines",
+            line: { color: "#ff8b8b", width: 2.2 },
+            hovertemplate: "theta=%{x:.1f}°<br>Y=%{y:.3e}<extra></extra>",
+          },
+          {
+            type: "scatter",
+            x: nodesX,
+            y: nodesY,
+            mode: "markers",
+            marker: { color: "#ffd07a", size: 7 },
+            hovertemplate: "node<br>theta=%{x:.1f}°<extra></extra>",
+          },
+        ],
+        layout: {
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)",
+          margin: { l: 56, r: 20, t: 8, b: 42 },
+          showlegend: false,
+          font: { color: "#e7edf8", size: 12 },
+          xaxis: { title: "theta (deg)", gridcolor: "#33435a", zerolinecolor: "#33435a" },
+          yaxis: { title: "Y(theta, phi=0)", gridcolor: "#33435a", zerolinecolor: "#33435a" },
+        },
+      }), [theta, y, nodesX, nodesY]);
+
+      const config = useMemo(() => ({ responsive: true, displaylogo: false }), []);
+      usePlotly(ref, figure, config);
+      return <div ref={ref} className="plot-shell plot-md" />;
+    }
+
+    function HeatmapPlot({ data }) {
+      const ref = useRef(null);
+      const figure = useMemo(() => ({
+        data: [{
+          type: "heatmap",
+          z: data.heatZ,
+          x: data.heatPhi,
+          y: data.theta.map((t) => (t * 180) / Math.PI),
+          colorscale: "RdBu",
+          reversescale: true,
+          zmin: -data.maxAbs,
+          zmax: data.maxAbs,
+          hovertemplate: "phi=%{x:.1f}°<br>theta=%{y:.1f}°<br>Y=%{z:.3e}<extra></extra>",
+        }],
+        layout: {
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)",
+          margin: { l: 62, r: 20, t: 8, b: 44 },
+          font: { color: "#e7edf8", size: 12 },
+          xaxis: {
+            title: "phi (deg, periodic)",
+            gridcolor: "#33435a",
+            zeroline: false,
+            tickvals: [0, 60, 120, 180, 240, 300, 360],
+          },
+          yaxis: { title: "theta (deg)", gridcolor: "#33435a", zeroline: false },
+        },
+      }), [data]);
+
+      const config = useMemo(() => ({ responsive: true, displaylogo: false }), []);
+      usePlotly(ref, figure, config);
+      return <div ref={ref} className="plot-shell plot-md" />;
+    }
+
+    function MathPanel({ l, m }) {
+      const mAbs = Math.abs(m);
+      const normValue = normalization(l, mAbs);
+      const polarNodes = l - mAbs;
+      const azimuthalNodes = 2 * mAbs;
+      const totalNodes = polarNodes + azimuthalNodes;
+
+      const associatedLatex = currentAssociatedLegendreLatex(l, mAbs);
+      const modeLatex = tesseralModeLatex(l, m);
+
+      return (
+        <div className="math-paper">
+          <h3 className="text-2xl font-semibold mb-2">Spherical Harmonic Identities</h3>
+          <p className="text-slate-600 mb-5">Current mode: <b>l = {l}</b>, <b>m = {m}</b></p>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 text-[15px]">
+            <div className="math-block">
+              <div className="font-semibold mb-1">A. General definition</div>
+              <MathTex tex={String.raw`Y_l^m(\theta,\phi)=N_{l,m}\,P_l^{|m|}(\cos\theta)e^{im\phi}`} />
+            </div>
+
+            <div className="math-block">
+              <div className="font-semibold mb-1">B. Normalization</div>
+              <MathTex tex={String.raw`N_{l,m}=\sqrt{\frac{2l+1}{4\pi}\frac{(l-|m|)!}{(l+|m|)!}}`} />
+              <MathTex tex={`N_{${l},${mAbs}}=${normValue.toExponential(6)}`} />
+            </div>
+
+            <div className="math-block">
+              <div className="font-semibold mb-1">C. Associated Legendre polynomial (current)</div>
+              <MathTex tex={associatedLatex} />
+            </div>
+
+            <div className="math-block">
+              <div className="font-semibold mb-1">D. Eigenvalue equation</div>
+              <MathTex tex={String.raw`-\nabla_\Omega^2Y_l^m=l(l+1)Y_l^m`} />
+              <MathTex tex={`l(l+1)=${l * (l + 1)}`} />
+            </div>
+
+            <div className="math-block">
+              <div className="font-semibold mb-1">E. Node structure</div>
+              <MathTex tex={String.raw`\text{Polar nodes}=l-|m|=${polarNodes}`} />
+              <MathTex tex={String.raw`\text{Azimuthal nodes}=2|m|=${azimuthalNodes}`} />
+              <MathTex tex={String.raw`\text{Total nodes}=${totalNodes}`} />
+            </div>
+
+            <div className="math-block">
+              <div className="font-semibold mb-1">F. Mode-specific expression</div>
+              <MathTex tex={modeLatex} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function RightSideNav() {
+      const items = [
+        ["section-3d", "3D Plot"],
+        ["section-polar", "Polar"],
+        ["section-profile", "Profile"],
+        ["section-heatmap", "Heatmap"],
+        ["section-math", "Math"],
+      ];
+
+      const jump = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+
+      return (
+        <nav className="right-nav" aria-label="Section navigation">
+          {items.map(([id, label]) => (
+            <button key={id} onClick={() => jump(id)}>{label}</button>
+          ))}
+        </nav>
+      );
+    }
+
+    function App() {
+      const [l, setL] = useState(3);
+      const [m, setM] = useState(2);
+      const [component, setComponent] = useState("real");
+      const resetViewRef = useRef(() => {});
+
+      const safeSetL = useCallback((value) => {
+        const nextL = Math.max(0, Math.round(Number.isFinite(value) ? value : 0));
+        setL(nextL);
+        setM((oldM) => clampM(nextL, oldM));
+      }, []);
+
+      const safeSetM = useCallback((value) => {
+        const v = Math.round(Number.isFinite(value) ? value : 0);
+        setM(clampM(l, v));
+      }, [l]);
+
+      useEffect(() => {
+        const onKey = (e) => {
+          const tag = document.activeElement && document.activeElement.tagName;
+          if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            safeSetL(l + 1);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            safeSetL(l - 1);
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            safeSetM(m + 1);
+          } else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            safeSetM(m - 1);
+          }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+      }, [l, m, safeSetL, safeSetM]);
+
+      const harmonic = useMemo(() => generateData(l, m, component), [l, m, component]);
+
+      const handleResetView = useCallback(() => {
+        if (resetViewRef.current) resetViewRef.current();
+      }, []);
+
+      return (
+        <div className="scroll-container">
+          <ControlPanel
+            l={l}
+            m={m}
+            component={component}
+            onLChange={safeSetL}
+            onMChange={safeSetM}
+            onComponentChange={setComponent}
+            onResetView={handleResetView}
+          />
+
+          <Section id="section-3d" title="Section 1: 3D Visualization" subtitle="Primary spherical harmonic surface. Drag to rotate and scroll to zoom.">
+            <SphericalPlot3D
+              data={harmonic}
+              onRegisterReset={(fn) => {
+                resetViewRef.current = fn;
+              }}
+            />
+          </Section>
+
+          <Section id="section-polar" title="Section 2: Polar Plot" subtitle="Angular magnitude structure with nodal markers.">
+            <PolarPlot data={harmonic} />
+          </Section>
+
+          <Section id="section-profile" title="Section 3: Polar Profile" subtitle="Line profile for Y(theta, phi = 0), highlighting node crossings.">
+            <PolarProfilePlot data={harmonic} />
+          </Section>
+
+          <Section id="section-heatmap" title="Section 4: Heatmap" subtitle="Theta-phi field view with explicit periodic wrap in phi.">
+            <HeatmapPlot data={harmonic} />
+          </Section>
+
+          <Section id="section-math" title="Section 5: Mathematics Panel" subtitle="Formatted equations and mode-specific identities.">
+            <MathPanel l={l} m={m} />
+          </Section>
+
+          <RightSideNav />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
