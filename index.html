@@ -187,6 +187,7 @@
       }
     }
   </style>
+
 </head>
 <body>
   <div id="root"></div>
@@ -535,7 +536,7 @@
       return <div ref={ref} className="plot-shell plot-xl" />;
     }
 
-    function PolarPlot({ data }) {
+    function PolarPlot({ data, onRegisterReset }) {
       const ref = useRef(null);
       const fullTheta = [...data.profileTheta, ...data.profileTheta.slice().reverse().map((t) => 360 - t)];
       const profileAbs = data.profileVal.map((v) => Math.abs(v));
@@ -579,10 +580,21 @@
 
       const config = useMemo(() => ({ responsive: true, displaylogo: false }), []);
       usePlotly(ref, figure, config);
+
+      useEffect(() => {
+        if (!onRegisterReset) return;
+        onRegisterReset(() => {
+          if (!ref.current) return;
+          Plotly.relayout(ref.current, {
+            "polar.radialaxis.autorange": true,
+          });
+        });
+      }, [onRegisterReset]);
+
       return <div ref={ref} className="plot-shell plot-lg" />;
     }
 
-    function PolarProfilePlot({ data }) {
+    function PolarProfilePlot({ data, onRegisterReset }) {
       const ref = useRef(null);
       const theta = data.profileTheta;
       const y = data.profileVal;
@@ -621,6 +633,18 @@
 
       const config = useMemo(() => ({ responsive: true, displaylogo: false }), []);
       usePlotly(ref, figure, config);
+
+      useEffect(() => {
+        if (!onRegisterReset) return;
+        onRegisterReset(() => {
+          if (!ref.current) return;
+          Plotly.relayout(ref.current, {
+            "xaxis.autorange": true,
+            "yaxis.autorange": true,
+          });
+        });
+      }, [onRegisterReset]);
+
       return <div ref={ref} className="plot-shell plot-md" />;
     }
 
@@ -739,7 +763,11 @@
       const [l, setL] = useState(3);
       const [m, setM] = useState(2);
       const [component, setComponent] = useState("real");
-      const resetViewRef = useRef(() => {});
+      const resetCallbacksRef = useRef({
+        plot3d: () => {},
+        polar: () => {},
+        profile: () => {},
+      });
 
       const safeSetL = useCallback((value) => {
         const nextL = Math.max(0, Math.round(Number.isFinite(value) ? value : 0));
@@ -778,7 +806,10 @@
       const harmonic = useMemo(() => generateData(l, m, component), [l, m, component]);
 
       const handleResetView = useCallback(() => {
-        if (resetViewRef.current) resetViewRef.current();
+        const callbacks = resetCallbacksRef.current;
+        callbacks.plot3d();
+        callbacks.polar();
+        callbacks.profile();
       }, []);
 
       return (
@@ -797,17 +828,27 @@
             <SphericalPlot3D
               data={harmonic}
               onRegisterReset={(fn) => {
-                resetViewRef.current = fn;
+                resetCallbacksRef.current.plot3d = fn;
               }}
             />
           </Section>
 
           <Section id="section-polar" title="Section 2: Polar Plot" subtitle="Angular magnitude structure with nodal markers.">
-            <PolarPlot data={harmonic} />
+            <PolarPlot
+              data={harmonic}
+              onRegisterReset={(fn) => {
+                resetCallbacksRef.current.polar = fn;
+              }}
+            />
           </Section>
 
           <Section id="section-profile" title="Section 3: Polar Profile" subtitle="Line profile for Y(theta, phi = 0), highlighting node crossings.">
-            <PolarProfilePlot data={harmonic} />
+            <PolarProfilePlot
+              data={harmonic}
+              onRegisterReset={(fn) => {
+                resetCallbacksRef.current.profile = fn;
+              }}
+            />
           </Section>
 
           <Section id="section-heatmap" title="Section 4: Heatmap" subtitle="Theta-phi field view with explicit periodic wrap in phi.">
@@ -825,5 +866,395 @@
 
     ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
+
+  <style>
+    .membrane-toggle-wrap {
+      min-width: 162px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 0;
+    }
+
+    .membrane-toggle-label {
+      color: #cbd8ed;
+      font-size: 12px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .membrane-toggle-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      height: 34px;
+      padding: 4px 8px;
+      border-radius: 9px;
+      border: 1px solid #3f5576;
+      background: #111e30;
+      transition: border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+    }
+
+    .membrane-toggle-pill[data-on="true"] {
+      border-color: #6fb6ff;
+      background: #132a43;
+      box-shadow: 0 0 0 1px rgba(111, 182, 255, 0.2), 0 0 12px rgba(82, 161, 237, 0.2);
+    }
+
+    .membrane-toggle-state {
+      font-size: 11px;
+      color: #93a6c5;
+      min-width: 26px;
+      text-align: right;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .membrane-switch {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      display: inline-block;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .membrane-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .membrane-slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #36485f;
+      border: 1px solid #48607f;
+      transition: background 220ms ease, border-color 220ms ease;
+    }
+
+    .membrane-slider:before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background: #edf5ff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+      transition: transform 220ms ease;
+    }
+
+    .membrane-switch input:checked + .membrane-slider {
+      background: linear-gradient(90deg, #3f90df, #67c4ff);
+      border-color: #9fd8ff;
+    }
+
+    .membrane-switch input:checked + .membrane-slider:before {
+      transform: translateX(24px);
+    }
+  </style>
+
+  <script>
+    (function () {
+      const OVERLAY_NAME = "__membrane_overlay__";
+      const state = {
+        enabled: false,
+        isApplying: false,
+        cacheKey: "",
+        cachedTrace: null,
+      };
+
+      const originalPlotlyReact = Plotly.react.bind(Plotly);
+
+      function is3DMainPlot(gd) {
+        return gd && gd.classList && gd.classList.contains("plot-xl");
+      }
+
+      function getMain3DPlot() {
+        return document.querySelector("#section-3d .plot-xl.js-plotly-plot");
+      }
+
+      function getSurfaceSize(trace) {
+        const rows = Array.isArray(trace && trace.x) ? trace.x.length : 0;
+        const cols = rows > 0 && Array.isArray(trace.x[0]) ? trace.x[0].length : 0;
+        return { rows, cols };
+      }
+
+      function maxRadiusFromTrace(trace) {
+        let maxR = 1;
+        const { rows, cols } = getSurfaceSize(trace);
+        for (let i = 0; i < rows; i += 1) {
+          for (let j = 0; j < cols; j += 1) {
+            const x = trace.x[i][j] || 0;
+            const y = trace.y[i][j] || 0;
+            const z = trace.z[i][j] || 0;
+            const r = Math.hypot(x, y, z);
+            if (r > maxR) maxR = r;
+          }
+        }
+        return maxR;
+      }
+
+      function factorial(n) {
+        if (n <= 1) return 1;
+        let out = 1;
+        for (let i = 2; i <= n; i += 1) out *= i;
+        return out;
+      }
+
+      function normalization(l, mAbs) {
+        return Math.sqrt(((2 * l + 1) / (4 * Math.PI)) * (factorial(l - mAbs) / factorial(l + mAbs)));
+      }
+
+      function associatedLegendreValue(l, m, x) {
+        if (m < 0 || m > l) return 0;
+        let pmm = 1.0;
+        if (m > 0) {
+          const somx2 = Math.sqrt(Math.max(0, (1 - x) * (1 + x)));
+          let fact = 1.0;
+          for (let i = 1; i <= m; i += 1) {
+            pmm *= -fact * somx2;
+            fact += 2.0;
+          }
+        }
+        if (l === m) return pmm;
+        let pmmp1 = x * (2 * m + 1) * pmm;
+        if (l === m + 1) return pmmp1;
+
+        let pll = 0;
+        for (let ll = m + 2; ll <= l; ll += 1) {
+          pll = ((2 * ll - 1) * x * pmmp1 - (ll + m - 1) * pmm) / (ll - m);
+          pmm = pmmp1;
+          pmmp1 = pll;
+        }
+        return pll;
+      }
+
+      function getCurrentLM() {
+        const controlsRow = document.querySelector("header .control-card .flex.flex-wrap.items-end.justify-center.gap-5");
+        if (!controlsRow) return { l: 0, m: 0 };
+        const lmInputs = controlsRow.querySelectorAll("input.num-input[type='number']");
+        const l = Math.max(0, Math.round(Number(lmInputs[0] && lmInputs[0].value)) || 0);
+        const mRaw = Math.round(Number(lmInputs[1] && lmInputs[1].value)) || 0;
+        const m = Math.max(-l, Math.min(l, mRaw));
+        return { l, m };
+      }
+
+      function buildMembraneTrace(baseTrace) {
+        const baseSize = getSurfaceSize(baseTrace);
+        if (!baseSize.rows || !baseSize.cols) return null;
+
+        const { l, m } = getCurrentLM();
+        const maxR = maxRadiusFromTrace(baseTrace);
+        const rows = Math.max(60, Math.min(96, baseSize.rows * 2));
+        const cols = Math.max(120, Math.min(192, baseSize.cols * 2));
+        const cacheKey = `${l}|${m}|${rows}|${cols}|${maxR.toFixed(6)}`;
+        if (state.cacheKey === cacheKey && state.cachedTrace) {
+          return state.cachedTrace;
+        }
+
+        const mAbs = Math.abs(m);
+        const norm = normalization(l, mAbs);
+        const r0 = maxR * 1.007;
+
+        // alpha is chosen so max membrane displacement stays small and tightly wraps orbitals.
+        let maxYAbs = 1e-9;
+        const yAbsGrid = [];
+
+        for (let i = 0; i < rows; i += 1) {
+          const t = (i / Math.max(1, rows - 1)) * Math.PI;
+          const pVal = associatedLegendreValue(l, mAbs, Math.cos(t));
+          const rowY = [];
+          for (let j = 0; j < cols; j += 1) {
+            const p = (j / Math.max(1, cols - 1)) * 2 * Math.PI;
+            const base = norm * pVal;
+            const re = mAbs === 0 ? base : Math.sqrt(2) * base * Math.cos(mAbs * p);
+            const im = mAbs === 0 ? 0 : Math.sqrt(2) * base * Math.sin(mAbs * p);
+            const yAbs = Math.hypot(re, im);
+            rowY.push(yAbs);
+            if (yAbs > maxYAbs) maxYAbs = yAbs;
+          }
+          yAbsGrid.push(rowY);
+        }
+
+        const alpha = (0.062 * maxR) / maxYAbs;
+
+        const mx = [];
+        const my = [];
+        const mz = [];
+
+        for (let i = 0; i < rows; i += 1) {
+          const t = (i / Math.max(1, rows - 1)) * Math.PI;
+          const sinT = Math.sin(t);
+          const cosT = Math.cos(t);
+          const xr = [];
+          const yr = [];
+          const zr = [];
+
+          for (let j = 0; j < cols; j += 1) {
+            const p = (j / Math.max(1, cols - 1)) * 2 * Math.PI;
+            const yAbs = yAbsGrid[i][j];
+            const r = Math.max(0.02, r0 + alpha * yAbs);
+            xr.push(r * sinT * Math.cos(p));
+            yr.push(r * sinT * Math.sin(p));
+            zr.push(r * cosT);
+          }
+
+          mx.push(xr);
+          my.push(yr);
+          mz.push(zr);
+        }
+
+        const trace = {
+          type: "surface",
+          name: OVERLAY_NAME,
+          x: mx,
+          y: my,
+          z: mz,
+          surfacecolor: yAbsGrid,
+          colorscale: [
+            [0, "#95b9dd"],
+            [0.5, "#adcdea"],
+            [1, "#cde2f4"],
+          ],
+          cmin: 0,
+          cmax: maxYAbs,
+          showscale: false,
+          opacity: 0.26,
+          hoverinfo: "skip",
+          lighting: {
+            ambient: 0.5,
+            diffuse: 0.86,
+            specular: 0.72,
+            roughness: 0.28,
+            fresnel: 0.38,
+          },
+          lightposition: { x: 130, y: 90, z: 160 },
+        };
+
+        state.cacheKey = cacheKey;
+        state.cachedTrace = trace;
+        return trace;
+      }
+
+      function applyOverlayTo3D() {
+        const gd = getMain3DPlot();
+        if (!gd || !gd.data || !gd.data.length) return;
+        if (state.isApplying) return;
+
+        const base = gd.data[0];
+        if (!base || base.type !== "surface") return;
+
+        const cleaned = gd.data.filter((trace) => trace && trace.name !== OVERLAY_NAME);
+        if (!cleaned.length) return;
+
+        const updatedBase = { ...cleaned[0] };
+        if (state.enabled) {
+          updatedBase.opacity = 0.72;
+        } else {
+          delete updatedBase.opacity;
+        }
+
+        const nextData = [updatedBase, ...cleaned.slice(1)];
+        if (state.enabled) {
+          const membraneTrace = buildMembraneTrace(updatedBase);
+          if (membraneTrace) nextData.push(membraneTrace);
+        }
+
+        const nextLayout = {
+          ...gd.layout,
+          transition: { duration: 260, easing: "cubic-in-out" },
+        };
+
+        state.isApplying = true;
+        originalPlotlyReact(gd, nextData, nextLayout, {
+          responsive: true,
+          displaylogo: false,
+          scrollZoom: true,
+        }).finally(() => {
+          state.isApplying = false;
+        });
+      }
+
+      function setToggleVisual(container, isOn) {
+        const stateText = container.querySelector(".membrane-toggle-state");
+        container.querySelector(".membrane-toggle-pill").setAttribute("data-on", String(isOn));
+        if (stateText) {
+          stateText.textContent = isOn ? "ON" : "OFF";
+          stateText.style.color = isOn ? "#8ec9ff" : "#93a6c5";
+        }
+      }
+
+      function injectToggle() {
+        if (document.getElementById("membrane-overlay-toggle")) return;
+
+        const controlsRow = document.querySelector("header .control-card .flex.flex-wrap.items-end.justify-center.gap-5");
+        if (!controlsRow) return;
+
+        const wrap = document.createElement("div");
+        wrap.className = "membrane-toggle-wrap";
+        wrap.innerHTML = `
+          <div class="membrane-toggle-label" title="Membrane: Visualizes spherical harmonics as a deformable surface">
+            Membrane Overlay
+          </div>
+          <div class="membrane-toggle-pill" data-on="false">
+            <label class="membrane-switch" title="Membrane: Visualizes spherical harmonics as a deformable surface">
+              <input id="membrane-overlay-toggle" type="checkbox" />
+              <span class="membrane-slider"></span>
+            </label>
+            <span class="membrane-toggle-state">OFF</span>
+          </div>
+        `;
+
+        const resetButton = controlsRow.querySelector("button.step-btn.w-auto");
+        if (resetButton && resetButton.parentElement === controlsRow) {
+          controlsRow.insertBefore(wrap, resetButton);
+        } else {
+          controlsRow.appendChild(wrap);
+        }
+
+        const input = wrap.querySelector("#membrane-overlay-toggle");
+        input.addEventListener("change", () => {
+          state.enabled = input.checked;
+          setToggleVisual(wrap, state.enabled);
+          applyOverlayTo3D();
+        });
+      }
+
+      Plotly.react = function patchedPlotlyReact(gd, data, layout, config) {
+        const result = originalPlotlyReact(gd, data, layout, config);
+        Promise.resolve(result).then(() => {
+          if (state.enabled && is3DMainPlot(gd) && !state.isApplying) {
+            applyOverlayTo3D();
+          }
+        });
+        return result;
+      };
+
+      const bootstrap = setInterval(() => {
+        injectToggle();
+        const gd = getMain3DPlot();
+        if (gd) {
+          clearInterval(bootstrap);
+          applyOverlayTo3D();
+        }
+      }, 120);
+    })();
+  </script>
+
+  <div style="margin-top: 40px; padding: 15px; text-align: center; font-size: 14px; color: #444;">
+    <hr style="margin-bottom: 10px;">
+    Made by <span style="color: #ffffff;">Ridima Singh</span> and <span style="color: #ffffff;">Avneesh Singh</span>, SMBL IISERM<br>
+    <a href="https://bhattri.github.io/Biophysics/lab.html" target="_blank">
+      https://bhattri.github.io/Biophysics/lab.html
+    </a>
+  </div>
 </body>
 </html>
