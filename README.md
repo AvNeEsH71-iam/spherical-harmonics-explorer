@@ -4,6 +4,8 @@ An interactive Python GUI for visualising **spherical harmonics Y_ℓ^m(θ,φ)**
 associated Legendre polynomials, and their physical meaning, designed for
 physics students and researchers.
 
+Website - https://avneesh71-iam.github.io/spherical-harmonics-explorer/
+
 ---
 
 ##  Features
